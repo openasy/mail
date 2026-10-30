@@ -1,0 +1,1557 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "OpenAsy Mail API",
+    "version": "0.1.0",
+    "summary": "A company's email on its own server: webmail and administration on Stalwart.",
+    "description": "Every screen of Mail uses this API, and so can your scripts (ADR 0014). Within `/api/v1` changes are additive only; anything removed is deprecated first (ADR 0024). Errors use Problem Details (RFC 9457).\n\nDomains and mailboxes are set in the domains file, never through the API; Mail keeps the mail server in step with it. A person's own mail and device passwords take the session of that person, never an API token. Everything else takes a session or an API token, and each operation names the role it needs (`x-openasy-role`: user, viewer, editor, admin; ADR 0003).\n\nSign-in, members and API tokens are under `/api/v1/auth`, provided by [@openasy/auth](https://github.com/openasy/auth#routes).",
+    "license": {
+      "name": "AGPL-3.0-only",
+      "identifier": "AGPL-3.0-only"
+    }
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "This Mail"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Webmail",
+      "description": "A person's own mail."
+    },
+    {
+      "name": "Devices",
+      "description": "Passwords for a person's own mail apps."
+    },
+    {
+      "name": "Domains",
+      "description": "The domains and mailboxes, as the domains file sets them, and their DNS."
+    },
+    {
+      "name": "Server",
+      "description": "Keeping the mail server in step with the file."
+    },
+    {
+      "name": "Product",
+      "description": "Version and overview of this Mail."
+    }
+  ],
+  "paths": {
+    "/api/v1/summary": {
+      "get": {
+        "operationId": "getSummary",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Overview",
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "description": "Needs the viewer role.",
+        "responses": {
+          "200": {
+            "description": "Domains, mailboxes, the file, the last sync and DNS problems.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Summary"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-openasy-role": "viewer"
+      }
+    },
+    "/api/v1/domains": {
+      "get": {
+        "operationId": "listDomains",
+        "tags": [
+          "Domains"
+        ],
+        "summary": "Domains",
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "description": "Domains and mailboxes are added, changed and removed in the domains file (MAIL_CONFIG) only. Needs the viewer role.",
+        "responses": {
+          "200": {
+            "description": "The domains as the file sets them, with their last DNS check.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DomainList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-openasy-role": "viewer"
+      }
+    },
+    "/api/v1/domains/{name}": {
+      "get": {
+        "operationId": "getDomain",
+        "tags": [
+          "Domains"
+        ],
+        "summary": "A domain",
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "description": "Needs the viewer role.",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "description": "The domain, such as example.com.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The domain's mailboxes and its last DNS check.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Domain"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-openasy-role": "viewer"
+      }
+    },
+    "/api/v1/domains/{name}/dns": {
+      "post": {
+        "operationId": "checkDns",
+        "tags": [
+          "Domains"
+        ],
+        "summary": "Check a domain's DNS",
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "description": "Reads MX, SPF, DKIM (with dkimSelector), DMARC and MTA-STS. This also happens every six hours. Needs the editor role.",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "description": "The domain, such as example.com.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The records read from public DNS now.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DomainCheck"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-openasy-role": "editor"
+      }
+    },
+    "/api/v1/sync": {
+      "get": {
+        "operationId": "getSync",
+        "tags": [
+          "Server"
+        ],
+        "summary": "Syncs with the mail server",
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "description": "Needs the viewer role.",
+        "responses": {
+          "200": {
+            "description": "The last sync and the history.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncHistory"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-openasy-role": "viewer"
+      },
+      "post": {
+        "operationId": "sync",
+        "tags": [
+          "Server"
+        ],
+        "summary": "Sync with the mail server now",
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "description": "Creates domains and accounts, updates them and disables accounts that left the file. This also happens after each change of the file and every five minutes. Needs the admin role.",
+        "responses": {
+          "200": {
+            "description": "What was changed on the mail server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-openasy-role": "admin"
+      }
+    },
+    "/api/v1/webmail/session": {
+      "get": {
+        "operationId": "getWebmailSession",
+        "tags": [
+          "Webmail"
+        ],
+        "summary": "Your mail session",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "description": "Needs a signed-in person with a mailbox in the file, any role; API tokens are refused.",
+        "responses": {
+          "200": {
+            "description": "Your mailbox and what the webmail may do.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebmailSession"
+                }
+              }
+            }
+          },
+          "502": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-openasy-role": "user"
+      }
+    },
+    "/api/v1/webmail/jmap": {
+      "post": {
+        "operationId": "jmap",
+        "tags": [
+          "Webmail"
+        ],
+        "summary": "Your mail, over JMAP",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "description": "JMAP calls to your own mail, made as you on the mail server. The server's management methods are refused. Needs a signed-in person with a mailbox in the file, any role; API tokens are refused.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JmapRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The mail server's answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JmapResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "502": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-openasy-role": "user"
+      }
+    },
+    "/api/v1/webmail/upload": {
+      "post": {
+        "operationId": "upload",
+        "tags": [
+          "Webmail"
+        ],
+        "summary": "Upload an attachment",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "description": "Up to 25 MiB. Needs a signed-in person with a mailbox in the file, any role; API tokens are refused.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "*/*": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The blob to attach to a message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Upload"
+                }
+              }
+            }
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "502": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-openasy-role": "user"
+      }
+    },
+    "/api/v1/webmail/download/{blob}": {
+      "get": {
+        "operationId": "download",
+        "tags": [
+          "Webmail"
+        ],
+        "summary": "Download an attachment",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "description": "Needs a signed-in person with a mailbox in the file, any role; API tokens are refused.",
+        "parameters": [
+          {
+            "name": "blob",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The attachment, always as a download.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "502": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-openasy-role": "user"
+      }
+    },
+    "/api/v1/devices": {
+      "get": {
+        "operationId": "listDevices",
+        "tags": [
+          "Devices"
+        ],
+        "summary": "Your device passwords",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "description": "Needs a signed-in person with a mailbox in the file, any role; API tokens are refused.",
+        "responses": {
+          "200": {
+            "description": "Passwords made for your mail apps; their secrets are not shown again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceList"
+                }
+              }
+            }
+          },
+          "502": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-openasy-role": "user"
+      },
+      "post": {
+        "operationId": "addDevice",
+        "tags": [
+          "Devices"
+        ],
+        "summary": "Make a device password",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "description": "A password for one mail app (Outlook, Thunderbird, a phone) over IMAP and SMTP. Needs a signed-in person with a mailbox in the file, any role; API tokens are refused.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The password, shown only now.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewDevice"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "502": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-openasy-role": "user"
+      }
+    },
+    "/api/v1/devices/{id}": {
+      "delete": {
+        "operationId": "removeDevice",
+        "tags": [
+          "Devices"
+        ],
+        "summary": "Remove a device password",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "description": "Needs a signed-in person with a mailbox in the file, any role; API tokens are refused.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed; the app can no longer sign in."
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "502": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-openasy-role": "user"
+      }
+    },
+    "/api/v1/version": {
+      "get": {
+        "operationId": "getVersion",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Version",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The running version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Version"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/products": {
+      "get": {
+        "operationId": "listProducts",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Other products of this install",
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "description": "Needs the user role.",
+        "responses": {
+          "200": {
+            "description": "From OPENASY_PRODUCTS, for the product switcher.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-openasy-role": "user"
+      }
+    },
+    "/healthz": {
+      "get": {
+        "operationId": "liveness",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Liveness",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The process is running.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/readyz": {
+      "get": {
+        "operationId": "readiness",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Readiness",
+        "description": "Ready while the database answers.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Ready to serve.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The database is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "operationId": "metrics",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Prometheus metrics",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Metrics in the Prometheus text format.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "__Host-openasy-session",
+        "description": "The browser session after signing in (`openasy-session` when Mail runs on plain http://localhost). Requests that change something must come from the Mail origin."
+      },
+      "apiToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "An API token created under Settings → API tokens (`oa_Mail_...`): one role, always an expiry (ADR 0003)."
+      },
+      "adminToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Only when Mail is started by its tests or a local script: one shared token with the admin role. A production install does not have it."
+      }
+    },
+    "responses": {
+      "Problem": {
+        "description": "An error, as RFC 9457 Problem Details.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Problem": {
+        "type": "object",
+        "required": [
+          "type",
+          "title",
+          "status",
+          "code"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "invalid-token",
+              "invalid-json",
+              "invalid-body",
+              "not-found",
+              "no-mailbox",
+              "method-not-allowed",
+              "mail-server-unavailable",
+              "payload-too-large",
+              "internal-error",
+              "unauthenticated",
+              "invalid-credentials",
+              "mfa-required",
+              "mfa-setup-required",
+              "forbidden",
+              "cross-site"
+            ],
+            "description": "Stable; match on this."
+          },
+          "detail": {
+            "type": "string"
+          }
+        }
+      },
+      "ProductLink": {
+        "type": "object",
+        "required": [
+          "id",
+          "url"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The product, as OpenAsy names it.",
+            "examples": [
+              "infrastructure"
+            ]
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The address people open it at.",
+            "examples": [
+              "https://infra.example.com"
+            ]
+          }
+        }
+      },
+      "ProductList": {
+        "type": "object",
+        "required": [
+          "products"
+        ],
+        "properties": {
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductLink"
+            }
+          }
+        }
+      },
+      "Version": {
+        "type": "object",
+        "required": [
+          "product",
+          "version"
+        ],
+        "properties": {
+          "product": {
+            "const": "mail"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "Status": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "ConfigFile": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "description": "The domains file and whether it is applied; null before it was first read.",
+        "required": [
+          "path",
+          "appliedAt",
+          "domains",
+          "mailboxes",
+          "error"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "appliedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "domains": {
+            "type": "integer"
+          },
+          "mailboxes": {
+            "type": "integer"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "SyncResult": {
+        "type": "object",
+        "required": [
+          "at",
+          "ok",
+          "domains",
+          "created",
+          "updated",
+          "disabled",
+          "error"
+        ],
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "domains": {
+            "type": "integer",
+            "description": "Domains created on the server."
+          },
+          "created": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Mailboxes created, by address."
+          },
+          "updated": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "disabled": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Mailboxes disabled because they left the file; their mail is kept."
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "SyncRun": {
+        "type": "object",
+        "required": [
+          "at",
+          "ok",
+          "domains",
+          "created",
+          "updated",
+          "disabled",
+          "error"
+        ],
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "domains": {
+            "type": "integer"
+          },
+          "created": {
+            "type": "integer"
+          },
+          "updated": {
+            "type": "integer"
+          },
+          "disabled": {
+            "type": "integer"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "SyncHistory": {
+        "type": "object",
+        "required": [
+          "last",
+          "runs"
+        ],
+        "properties": {
+          "last": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SyncResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "runs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyncRun"
+            },
+            "description": "The last 20, newest first."
+          }
+        }
+      },
+      "Summary": {
+        "type": "object",
+        "required": [
+          "domains",
+          "mailboxes",
+          "disabled",
+          "file",
+          "sync",
+          "hostname",
+          "dnsProblems"
+        ],
+        "properties": {
+          "domains": {
+            "type": "integer"
+          },
+          "mailboxes": {
+            "type": "integer"
+          },
+          "disabled": {
+            "type": "integer"
+          },
+          "file": {
+            "$ref": "#/components/schemas/ConfigFile"
+          },
+          "sync": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SyncResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The last time the mail server was brought in step with the file."
+          },
+          "hostname": {
+            "type": "string",
+            "description": "The name the mail server is reached at; MX records point here."
+          },
+          "dnsProblems": {
+            "type": "integer",
+            "description": "DNS records missing or wrong, over all domains."
+          }
+        }
+      },
+      "RecordCheck": {
+        "type": "object",
+        "required": [
+          "kind",
+          "name",
+          "type",
+          "status",
+          "expected",
+          "found",
+          "detail"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "mx",
+              "spf",
+              "dkim",
+              "dmarc",
+              "mta-sts"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "The name the record is set on, such as _dmarc.example.com."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "MX",
+              "TXT"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "missing",
+              "wrong"
+            ]
+          },
+          "expected": {
+            "type": "string",
+            "description": "A value that would be right, to copy into the DNS provider."
+          },
+          "found": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "DomainCheck": {
+        "type": "object",
+        "required": [
+          "domain",
+          "checkedAt",
+          "records"
+        ],
+        "properties": {
+          "domain": {
+            "type": "string"
+          },
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecordCheck"
+            }
+          }
+        }
+      },
+      "DomainList": {
+        "type": "object",
+        "required": [
+          "domains",
+          "file"
+        ],
+        "properties": {
+          "domains": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "mailboxes",
+                "disabled",
+                "dns"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "mailboxes": {
+                  "type": "integer"
+                },
+                "disabled": {
+                  "type": "integer"
+                },
+                "dns": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/DomainCheck"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "file": {
+            "$ref": "#/components/schemas/ConfigFile"
+          }
+        }
+      },
+      "Mailbox": {
+        "type": "object",
+        "required": [
+          "address",
+          "name",
+          "quota",
+          "aliases",
+          "disabled"
+        ],
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quota": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Bytes the mailbox may hold, or null for no limit."
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "disabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Domain": {
+        "type": "object",
+        "required": [
+          "name",
+          "dkimSelector",
+          "mailboxes",
+          "dns"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "dkimSelector": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mailboxes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Mailbox"
+            }
+          },
+          "dns": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DomainCheck"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "WebmailSession": {
+        "type": "object",
+        "required": [
+          "address",
+          "hostname",
+          "name",
+          "accountId",
+          "capabilities",
+          "state"
+        ],
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "hostname": {
+            "type": "string",
+            "description": "The server mail apps connect to, over IMAP (993) and SMTP (465 or 587)."
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "accountId": {
+            "type": "string",
+            "description": "The JMAP account of the person's mail."
+          },
+          "capabilities": {
+            "type": "object",
+            "description": "The JMAP capabilities the webmail may use, with the server's limits."
+          },
+          "state": {
+            "type": "string"
+          }
+        }
+      },
+      "JmapRequest": {
+        "type": "object",
+        "required": [
+          "using",
+          "methodCalls"
+        ],
+        "description": "A JMAP request (RFC 8620). Only the mail, submission, vacation response and quota methods are passed on.",
+        "properties": {
+          "using": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "methodCalls": {
+            "type": "array",
+            "maxItems": 32,
+            "items": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "minItems": 3,
+              "maxItems": 3
+            }
+          }
+        }
+      },
+      "JmapResponse": {
+        "type": "object",
+        "required": [
+          "methodResponses"
+        ],
+        "properties": {
+          "methodResponses": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "minItems": 3,
+              "maxItems": 3
+            }
+          },
+          "sessionState": {
+            "type": "string"
+          }
+        }
+      },
+      "Upload": {
+        "type": "object",
+        "required": [
+          "blobId"
+        ],
+        "properties": {
+          "accountId": {
+            "type": "string"
+          },
+          "blobId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer"
+          }
+        }
+      },
+      "Device": {
+        "type": "object",
+        "required": [
+          "id",
+          "description"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DeviceList": {
+        "type": "object",
+        "required": [
+          "devices"
+        ],
+        "properties": {
+          "devices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Device"
+            }
+          }
+        }
+      },
+      "NewDevice": {
+        "type": "object",
+        "required": [
+          "id",
+          "description",
+          "secret",
+          "username"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "secret": {
+            "type": "string",
+            "description": "The password to enter in the mail app. It is shown only this once."
+          },
+          "username": {
+            "type": "string",
+            "description": "The user name to enter: the mailbox's address."
+          }
+        }
+      }
+    }
+  }
+}

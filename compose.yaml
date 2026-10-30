@@ -1,0 +1,60 @@
+# Mail: the webmail and administration (this repository) next to Stalwart, the mail server. See the README for the
+# first start: Stalwart's own setup, the service account Mail uses, and the DNS records.
+#
+#   openssl rand -hex 32 > openasy-kek          # Mail's key: sign-in secrets (ADR 0021). Keep it with your backups
+#   printf '%s' 'the service account password' > stalwart-password
+#   docker compose up -d
+#   docker compose logs mail | grep 'no owner yet'   # the one-time link that creates the owner account
+services:
+  stalwart:
+    # Pin the exact version you run; Mail is tested against Stalwart 0.16.
+    image: stalwartlabs/stalwart:v0.16
+    restart: unless-stopped
+    ports:
+      - "25:25" # mail from other servers
+      - "465:465" # SMTP for mail apps, TLS
+      - "587:587" # SMTP for mail apps, STARTTLS
+      - "993:993" # IMAP for mail apps, TLS
+      - "127.0.0.1:8443:443" # Stalwart's own admin, for its first setup only
+    volumes:
+      - stalwart-data:/opt/stalwart # every mailbox: keep it in your backups
+
+  mail:
+    image: ghcr.io/openasy/mail:0.1.0
+    restart: unless-stopped
+    depends_on: [stalwart]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: [/tmp]
+    ports:
+      - "127.0.0.1:8080:8080" # webmail, administration and API; put a TLS proxy in front
+    volumes:
+      - mail-data:/data # SQLite database: sign-in and the history of syncs; the mail itself is in Stalwart
+      - ./config:/config:ro # mail.yaml, the domains and mailboxes; mount the folder so an editor's save reaches it
+    secrets:
+      - openasy-kek # mounted at /run/secrets/openasy-kek
+      - stalwart-password # mounted at /run/secrets/stalwart-password
+    environment:
+      # The address people open Mail at; with a TLS proxy, its https:// URL.
+      MAIL_PUBLIC_URL: ${MAIL_PUBLIC_URL:-http://localhost:8080}
+      # The name other mail servers reach Stalwart at, for the MX records. Defaults to MAIL_PUBLIC_URL's host.
+      MAIL_HOSTNAME: ${MAIL_HOSTNAME:-mail.example.com}
+      MAIL_CONFIG: /config/mail.yaml
+      MAIL_STALWART_URL: http://stalwart:8080
+      MAIL_STALWART_USER: openasy
+      # Sign in with your identity provider (OIDC), see the README. Everyone with a mailbox signs in as a user:
+      # OPENASY_OIDC_ISSUER: https://login.example.com
+      # OPENASY_OIDC_CLIENT_ID: mail
+      # OPENASY_OIDC_CLIENT_SECRET: ${OPENASY_OIDC_CLIENT_SECRET}
+      # OPENASY_OIDC_DEFAULT_ROLE: user
+
+volumes:
+  stalwart-data:
+  mail-data:
+
+secrets:
+  openasy-kek:
+    file: ./openasy-kek
+  stalwart-password:
+    file: ./stalwart-password

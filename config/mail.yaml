@@ -1,0 +1,18 @@
+# The domains and mailboxes of this Mail. Mail keeps the mail server in step with this file: it is read again within a
+# minute of a save, applied whole or not at all, and a mistake leaves the last good version in place (see the README).
+#
+# A mailbox taken out of the file is disabled, not deleted; its mail stays on the server.
+domains:
+  - name: example.com
+    # The selector the mail server signs with, so Mail can check the DKIM record. Optional.
+    dkimSelector: mail
+    mailboxes:
+      - address: jane@example.com
+        name: Jane Doe
+        quota: 5GB
+        # Mail to these addresses is delivered to Jane too.
+        aliases: [j.doe@example.com, sales@example.com]
+      - address: ali@example.com
+        name: Ali Yılmaz
+      - address: former@example.com
+        disabled: true
