@@ -27,7 +27,8 @@ function wanted(m: Mailbox, domainIds: Map<string, string>, disabled: boolean): 
   return {
     description: m.name,
     aliases: Object.fromEntries(m.aliases.map((a, i) => [String(i), { name: localPart(a), domainId: domainIds.get(domainPart(a))! }])),
-    quotas: { maxDiskQuota: m.quota },
+    // Stalwart takes no null here: no quota is an empty map.
+    quotas: m.quota === null ? {} : { maxDiskQuota: m.quota },
     permissions: disabled ? { "@type": "Merge", enabledPermissions: {}, disabledPermissions: DISABLED } : { "@type": "Inherit" },
   };
 }
@@ -47,7 +48,7 @@ function diff(a: StalwartAccount, want: Record<string, unknown>, disabled: boole
   const patch: Record<string, unknown> = {};
   if ((a.description ?? null) !== want.description) patch.description = want.description;
   if (aliasKey(a.aliases) !== aliasKey(want.aliases as StalwartAccount["aliases"])) patch.aliases = want.aliases;
-  if ((a.quotas?.maxDiskQuota ?? null) !== (want.quotas as { maxDiskQuota: number | null }).maxDiskQuota) patch.quotas = want.quotas;
+  if ((a.quotas?.maxDiskQuota ?? null) !== ((want.quotas as { maxDiskQuota?: number }).maxDiskQuota ?? null)) patch.quotas = want.quotas;
   if (isDisabled(a) !== disabled) patch.permissions = want.permissions;
   return patch;
 }
@@ -97,9 +98,10 @@ export async function sync(stalwart: Stalwart, domains: Domain[], now = () => ne
         }
       }
     }
-    // What is left are accounts in the file's domains that the file no longer lists.
+    // What is left are accounts in the file's domains that the file no longer lists. The server's administrators and
+    // Mail's own service account are not mailboxes of the file: they are left as they are.
     for (const [addr, a] of accounts) {
-      if (isDisabled(a)) continue;
+      if (isDisabled(a) || (a.roles && a.roles["@type"] !== "User")) continue;
       update[a.id] = { permissions: { "@type": "Merge", enabledPermissions: {}, disabledPermissions: DISABLED } };
       result.disabled.push(addr);
     }

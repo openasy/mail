@@ -62,6 +62,23 @@ domains:
     expect(fake.accounts.size).toBe(2);
   });
 
+  it("sets no quota as an empty map, and leaves the server's administrators and Mail's service account alone", async () => {
+    const { fake, stalwart, byAddress } = setup();
+    await sync(stalwart, parseConfig(DOMAINS));
+    const domainId = [...fake.domains.values()].find((d) => d.name === "example.com")!.id;
+    // Made by the first start: Stalwart's administrator and the account Mail signs in with, both in a managed domain.
+    for (const [id, name] of [
+      ["admin-1", "admin"],
+      ["service-1", "openasy"],
+    ] as const)
+      fake.accounts.set(id, { id, "@type": "User", name, domainId, roles: { "@type": "Admin" }, permissions: { "@type": "Inherit" } });
+    const r = await sync(stalwart, parseConfig("domains:\n  - name: example.com\n    mailboxes: [{ address: ali@example.com }]\n  - name: example.org"));
+    expect(r).toMatchObject({ ok: true, created: ["ali@example.com"], disabled: ["jane@example.com"] });
+    expect(byAddress("ali@example.com")!.quotas).toEqual({});
+    expect(byAddress("admin@example.com")!.permissions).toEqual({ "@type": "Inherit" });
+    expect(byAddress("openasy@example.com")!.permissions).toEqual({ "@type": "Inherit" });
+  });
+
   it("leaves accounts in other domains alone", async () => {
     const { fake, stalwart, byAddress } = setup();
     await sync(stalwart, parseConfig("domains:\n  - name: other.com\n    mailboxes: [{ address: x@other.com }]"));

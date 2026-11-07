@@ -44,6 +44,8 @@ export interface StalwartAccount {
   aliases?: Record<string, { name: string; domainId: string }> | null;
   quotas?: { maxDiskQuota?: number | null } | null;
   permissions?: { "@type": string; disabledPermissions?: Record<string, boolean> } | null;
+  /** User for a mailbox; Admin for the server's administrators and Mail's own service account. */
+  roles?: { "@type": string } | null;
 }
 
 export interface AppPassword {

@@ -71,20 +71,28 @@ open for outgoing mail. Many cloud providers block it; then set a relay for outg
 
 ```bash
 openssl rand -hex 32 > openasy-kek
-printf '%s' "$(openssl rand -base64 24)" > stalwart-password
+printf '%s' "$(openssl rand -hex 24)" > stalwart-password
+printf 'STALWART_RECOVERY_ADMIN=admin:%s\n' "$(openssl rand -hex 16)" > stalwart.env
 $EDITOR config/mail.yaml   # your domains and mailboxes
-docker compose up -d stalwart
+docker compose up -d
 ```
 
-The first time, finish Stalwart's own setup in its admin on https://localhost:8443 (the log of `stalwart` shows its
-first password): its host name, which is `MAIL_HOSTNAME`, and its TLS certificate. Then create the account Mail uses,
-`openasy`, with the password in `stalwart-password` and the administrator role, which includes the `impersonate`
-permission. Then start Mail:
+Stalwart's first start is done through its API by `server/stalwart-setup.ts`, from the Mail container: it sets the host
+name (`MAIL_HOSTNAME`) and the first domain of `mail.yaml`, asks Let's Encrypt for the certificate, and, after one
+restart, makes the account Mail uses, `openasy`, with the password in `stalwart-password` and the administrator role,
+which includes the `impersonate` permission. It does only what is not done yet, so it is safe to run again.
 
 ```bash
-docker compose up -d mail
+docker compose exec -e "$(cat stalwart.env)" mail node server/stalwart-setup.ts   # then it asks for a restart
+docker compose restart stalwart
+docker compose exec -e "$(cat stalwart.env)" mail node server/stalwart-setup.ts
 docker compose logs mail | grep 'no owner yet'
 ```
+
+`STALWART_RECOVERY_ADMIN` in `stalwart.env` is Stalwart's own administrator, for its admin pages on
+https://localhost:8443; keep it with your backups. Set `STALWART_REQUEST_CERTIFICATE=false` for the setup on a network
+the internet cannot reach. Mail never disables Stalwart's administrators or its own service account, even when they are
+in a domain of the file.
 
 Open the link from the log once to create the owner account; there is no default password (ADR 0013). Mail is on
 http://localhost:8080; put it behind TLS. Everyone with a mailbox signs in with the same address: through your identity
@@ -137,6 +145,11 @@ npm run dev     # the UI, with the API on :8080
 ```
 
 Tests run against a mail server in memory (`server/fake-stalwart.ts`) that answers the JMAP calls Mail makes.
+
+`npm run e2e` (`e2e/run.sh`, also in CI) starts the Stalwart that `compose.yaml` pins, does its first start with
+`server/stalwart-setup.ts`, and runs Mail's server against it: the domains file applied, mail written in the webmail and
+delivered, mail to an alias, the webmail kept to a person's own mail, a mail app's password over IMAP, and a mailbox
+taken out of the file, each checked in Stalwart itself.
 
 ## Licence
 

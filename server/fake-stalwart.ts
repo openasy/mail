@@ -62,8 +62,21 @@ export function fakeStalwart() {
         return [name, set(domains, args, (v) => ({ id: id(), name: v.name })), callId];
       case "x:Account/get":
         return [name, { list: [...accounts.values()].map((a) => structuredClone(a)) }, callId];
-      case "x:Account/set":
+      case "x:Account/set": {
+        // As Stalwart 0.16 does: a quota is a number, and no quota is an empty map, never null.
+        const bad = (v: { quotas?: Record<string, unknown> } | null) => Object.values(v?.quotas ?? {}).some((q) => typeof q !== "number" || q < 0);
+        const refused = Object.entries({ ...(args.create as object), ...(args.update as object) }).filter(([, v]) => bad(v as never));
+        if (refused.length) {
+          const notSet = Object.fromEntries(
+            refused.map(([k]) => [
+              k,
+              { type: "invalidProperties", description: "Invalid value for unsigned integer property (expected non-negative integer)" },
+            ]),
+          );
+          return [name, { created: {}, updated: {}, notCreated: notSet }, callId];
+        }
         return [name, set(accounts, args, (v) => ({ ...v, id: id() })), callId];
+      }
       case "x:AppPassword/get":
         return [name, { list: appPasswords.get(args.accountId as string) ?? [] }, callId];
       case "x:AppPassword/set": {
