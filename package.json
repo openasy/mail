@@ -1,6 +1,6 @@
 {
   "name": "@openasy/mail",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "OpenAsy Mail: a company's email on its own server, with webmail and administration on Stalwart, set in a file.",
   "license": "AGPL-3.0-only",
