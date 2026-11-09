@@ -61,7 +61,7 @@
   color: var(--oa-fg);
 }
 .mail-child {
-  padding-left: 1.5rem;
+  padding-inline-start: 1.5rem;
 }
 .mail-active,
 .mail-active:hover {
@@ -133,7 +133,7 @@
 }
 
 .mail-chip-remove {
-  margin-left: 0.25rem;
+  margin-inline-start: 0.25rem;
   display: inline-flex;
   background: none;
   border: 0;

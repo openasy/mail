@@ -635,7 +635,7 @@ export function Webmail({ call, session }: { call: Call; session: WebmailSession
                       setOpen(undefined);
                     }}
                     className={cn(
-                      "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm",
+                      "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-start text-sm",
                       "mail-folder",
                       active && "mail-active",
                       f.parentId && "mail-child",
@@ -691,7 +691,7 @@ export function Webmail({ call, session }: { call: Call; session: WebmailSession
                       type="button"
                       onClick={() => void read(e)}
                       aria-current={open?.id === e.id ? "true" : undefined}
-                      className={cn("flex w-full flex-col gap-0.5 px-3 py-2 text-left", "mail-row", open?.id === e.id && "mail-active")}
+                      className={cn("flex w-full flex-col gap-0.5 px-3 py-2 text-start", "mail-row", open?.id === e.id && "mail-active")}
                     >
                       <span className="flex items-baseline gap-2">
                         {!seen && <span className="size-2 shrink-0 rounded-full bg-accent" aria-label={t("mail.unread")} />}
